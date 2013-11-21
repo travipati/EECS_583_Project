@@ -1,0 +1,4 @@
+My pass is able to identify load instructions and instructions which depend on these loads. The blocks which contain these instructions are split then the edge is split and a repo block is added. The instructions are then hoisted and cloned into a redo block. A flag is craeted in the preheader and assigned to false after each of these instructions. At the end of the original block this flag is used to branch to the redo block (original branch is deleted).
+The pass also may use a heuristic. A load will be hoisted if it executes more than 20 times and if the load aliases less than 10% of the time.
+The pass also contains code to insert a comparison instruction after all store instructions and store the result to the flag variable. However, a flag was places into the code to skip over this code because when implemented the pass would core dump.
+SSA/mem2reg consideration was not implemented.
