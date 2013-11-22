@@ -1,0 +1,7 @@
+README: run make in the project directory to build the .so files
+the script Test1script.sh runs on the program named simple.c in the same directory. You will probally need to edit some of the paths. The paths to opt should be OK if you are un uniquename/githubdir/onelevelup directory, the paths to the pass depend on where you put the pass because I could only get stuff to work when I fully qualified them for some reason
+it will output 3 bitcode files
+modif.bc is after just my pass, this changes 100% biased branches to unconditional branches
+modif2.bc is after running dead code elimination
+modif3.bc is after CFG simplification. This gets rid of empty basic blocks and basic blocks that are unreachable
+the file "modif" is an executable compiled from modif3.bc

@@ -1,0 +1,12 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0x293a1a0 [shape=record,label="{entry:\l  %retval = alloca i32, align 4\l  store i32 0, i32* %retval\l  store i32 1, i32* @i, align 4\l  store i32 0, i32* @i, align 4\l  br label %for.cond\l}"];
+	Node0x293a1a0 -> Node0x293a200;
+	Node0x293a200 [shape=record,label="{for.cond:                                         \l  %0 = load i32* @i, align 4\l  %cmp = icmp slt i32 %0, 10000\l  br i1 %cmp, label %for.body, label %for.end\l|{<s0>T|<s1>F}}"];
+	Node0x293a200:s0 -> Node0x293a260;
+	Node0x293a200:s1 -> Node0x293a2c0;
+	Node0x293a260 [shape=record,label="{for.body:                                         \l  %1 = load i32* @i, align 4\l  %inc = add nsw i32 %1, 1\l  store i32 %inc, i32* @i, align 4\l  br label %for.cond\l}"];
+	Node0x293a260 -> Node0x293a200;
+	Node0x293a2c0 [shape=record,label="{for.end:                                          \l  %call22 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([7 x i8]* @.str1, i32 0, i32 0))\l  %2 = load i32* %retval\l  ret i32 %2\l}"];
+}
