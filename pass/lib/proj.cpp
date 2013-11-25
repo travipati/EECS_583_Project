@@ -5,6 +5,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/UnrollLoop.h"
 #include "LAMPLoadProfile.h"
 #include "LAMPProfiling.h"
 #include <fstream>
@@ -20,6 +21,7 @@ struct branchkill : public FunctionPass {
 	static char ID;
 	branchkill() : FunctionPass(ID) {}
 	virtual bool runOnFunction(Function &F) {
+		bool changed = false;
 		ProfileInfo * PI;
 		vector<BasicBlock *> dead;
 		PI = &getAnalysis<ProfileInfo>();
@@ -45,6 +47,7 @@ struct branchkill : public FunctionPass {
 			}
 
 			if (max == sum) {
+				//errs() << "looking at a branch with max = " << max << " sum = " << sum << " Numsucc = " << numsucc <<"\n"; // UNCOMMENT THIS TO TRY AND DEBUG BAD PROFILE INFO, atm after running loop unroll
 				//errs() << "thinking about chageing branch with numsucc = " << numsucc << "\n";
 				if (numsucc <= 1) {
 					continue;
@@ -56,14 +59,15 @@ struct branchkill : public FunctionPass {
 						succ->removePredecessor(b);
 					}
 				}
-				//	errs() << "changing a branch, formally had " << b->getTerminator()->getNumSuccessors() << " successors \n";
+				
+				//errs() << "changing a branch, formally had " << b->getTerminator()->getNumSuccessors() << " successors \n";
 				b->getTerminator()->eraseFromParent(); // delete the  unconditionalbranch added by SplitBlock, we are adding our own
 				BranchInst::Create(Beastsucc, b);
-
+				changed = true;
 				b = F.begin(); //we modified the CFG, so restart iterator or things get fucked
 			}
 		}
-		return true; //fixme return true only if we changed anything
+		return changed; //fixme return true only if we changed anything
 	}
 	void getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.addRequired<ProfileInfo>();
@@ -195,9 +199,53 @@ void HoistLoads::hoist(Instruction &I) {
 	changed = true;
 }
 
+
+
+//todo: make this sink stores also, if it turns out doing this is a good speedup
+struct MaxUnroll : public LoopPass {
+
+	std::map<Instruction *, int> numTimesExecuted;
+	std::map<Instruction *, int> numDeps;
+
+	LoopInfo      *LI;       // Current LoopInfo
+	ProfileInfo * PI;
+	static char ID;
+
+	MaxUnroll() : LoopPass(ID) {}
+	virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
+
+	void getAnalysisUsage(AnalysisUsage &AU) const {
+		AU.addRequired<ProfileInfo>();
+		AU.addRequired<LoopInfo>();
+	}
+};
+
+bool MaxUnroll::runOnLoop(Loop *L, LPPassManager &LPM){
+	BasicBlock *Header = L->getHeader();
+	BasicBlock *PreHeader = L->getLoopPreheader();
+	LI = &getAnalysis<LoopInfo>();
+	PI = &getAnalysis<ProfileInfo>();
+	/*
+	BasicBlock *LatchBlock = L->getLoopLatch();
+	BranchInst *BI = dyn_cast<BranchInst>(LatchBlock->getTerminator());
+
+	assert(BI);
+	assert(!BI->isUnconditional());
+	*/
+	if ((int)PI->getExecutionCount(Header) % (int)PI->getExecutionCount(PreHeader) != 0){ // catches some, but not all of the problems, 
+		errs() << " well shit, this loop runs different number of iterations each time, we prob should not be running this pass\n";
+		return false; 
+	}
+	unsigned execount = PI->getExecutionCount(Header) / PI->getExecutionCount(PreHeader);
+	return UnrollLoop(L, execount, execount, true, execount, LI, &LPM);
+}
+
+
 char branchkill::ID = 0;
 char HoistLoads::ID = 1;
+char MaxUnroll::ID = 1;
 
+static RegisterPass<MaxUnroll> Z("MaxUnroll", "MaxUnroll", false, false);
 static RegisterPass<branchkill> Y("branchkill", "branchkill", false, false);
 static RegisterPass<HoistLoads> X("HoistLoads", "Hello World Pass", false, false);
 
